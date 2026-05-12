@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture Drive City 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        
+        /* HUD UI */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 10;
+            background: rgba(10, 15, 30, 0.75);
+            padding: 20px;
+            border-radius: 16px;
+            pointer-events: none;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            width: 280px;
+            transition: all 0.3s ease;
+        }
+
+        .hud-section-title {
+            font-size: 11px;
+            color: #88aaff;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin: 14px 0 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 4px;
+        }
+
+        h1 { margin: 0 0 12px 0; font-size: 22px; color: #00ffcc; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,204,0.5); }
+        
+        .stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px; }
+        .stat-val { font-weight: bold; color: #ffeb3b; }
+        
+        /* Therapy Progress Bars */
+        .progress-container {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            height: 10px;
+            margin-top: 4px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+            border-radius: 6px;
+            transition: width 0.2s ease, background 0.3s ease;
+        }
+        .progress-bar.high {
+            background: linear-gradient(90deg, #00b4db, #0083b0);
+        }
+        .progress-bar.optimal {
+            background: linear-gradient(90deg, #11998e, #38ef7d);
+        }
+
+        .status-box { 
+            margin-top: 12px; 
+            padding: 10px; 
+            background: rgba(0, 255, 204, 0.1); 
+            border-radius: 8px; 
+            text-align: center; 
+            font-weight: bold;
+            color: #00ffcc;
+            font-size: 15px;
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            text-shadow: 0 0 8px rgba(0,255,204,0.4);
+        }
+
+        /* Webcam Feedback */
+        #cam-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 240px;
+            height: 180px;
+            z-index: 10;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 3px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: #000;
+        }
+        
+        #webcam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); /* Mirror */ }
+        
+        /* Loading Screen */
+        #loader {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            transition: opacity 1s;
+        }
+        
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid #333;
+            border-top: 5px solid #00ffcc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+            text-align: center;
+            z-index: 5;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #controls-fallback {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #ff4444;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            display: none;
+        }
+
+        /* AI Companion Interface */
+        #companion-hud {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 16px 24px;
+            border-radius: 20px;
+            pointer-events: auto;
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            width: 420px;
+            text-align: center;
+            display: none;
+            animation: slideDown 0.4s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { top: -100px; opacity: 0; }
+            to { top: 20px; opacity: 1; }
+        }
+
+        .companion-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .companion-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #00ffcc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 0 12px #00ffcc;
+            animation: pulseVoice 1.5s infinite alternate;
+        }
+
+        @keyframes pulseVoice {
+            from { transform: scale(0.95); box-shadow: 0 0 8px #00ffcc; }
+            to { transform: scale(1.05); box-shadow: 0 0 20px #00ffcc; }
+        }
+
+        .companion-title {
+            font-size: 14px;
+            color: #fff;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .companion-subtitle {
+            font-size: 15px;
+            color: #e2e8f0;
+            line-height: 1.4;
+            margin-bottom: 12px;
+            font-style: italic;
+        }
+
+        .companion-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .companion-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #00ffcc;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        .companion-btn:hover {
+            background: #00ffcc;
+            color: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,255,204,0.4);
+        }
+
+        .companion-avatar.listening {
+            background: #ff416c;
+            color: #fff;
+            box-shadow: 0 0 20px #ff416c;
+            animation: pulseListen 0.8s infinite alternate;
+        }
+
+        @keyframes pulseListen {
+            from { transform: scale(0.95); box-shadow: 0 0 10px #ff416c; }
+            to { transform: scale(1.15); box-shadow: 0 0 30px #ff416c; }
+        }
+
+        #player-transcript {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #ffeb3b;
+            background: rgba(0,0,0,0.4);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px dashed rgba(255,235,59,0.4);
+            display: none;
+        }
+    </style>
+    
+    <!-- Three.js -->
+    <script src="three.min.js"></script>
+    <script src="GLTFLoader.js"></script>
+    
+    <!-- MediaPipe Tasks Vision -->
+    <script src="vision_bundle.mjs" type="module"></script>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="loading-text">Loading 3D Engine & AI Vision...</div>
+        <div id="debug-log" style="font-size: 10px; color: #aaa; margin-top: 10px; max-height: 100px; overflow: auto;"></div>
+        <button id="controls-fallback" onclick="enableKeyboardMode()">Camera failed? Click for Keyboard Mode</button>
+    </div>
+
+    <script>
+        // Debug Logger
+        function log(msg) {
+            console.log(msg);
+            const d = document.getElementById('debug-log');
+            if(d) d.innerHTML += "<div>" + msg + "</div>";
+        }
+        window.onerror = function(msg, url, line) {
+            log("Error: " + msg + " (" + line + ")");
+        };
+    </script>
+
+    <div id="hud">
+        <h1>Gesture Racer</h1>
+        <div class="hud-section-title">Driving Stats</div>
+        <div class="stat-row"><span>Speed:</span> <span id="speed-val" class="stat-val">0 km/h</span></div>
+        <div class="stat-row"><span>Distance:</span> <span id="dist-val" class="stat-val">0 m</span></div>
+        
+        <div class="hud-section-title">Live Therapy Metrics</div>
+        <div class="stat-row"><span>Arm Elevation:</span> <span id="elevation-val" class="stat-val">0%</span></div>
+        <div class="progress-container">
+            <div id="elevation-bar" class="progress-bar"></div>
+        </div>
+        
+        <div class="stat-row"><span>Sustained Elevation:</span> <span id="sustained-val" class="stat-val">0s</span></div>
+        <div class="stat-row"><span>Steering Smoothness:</span> <span id="smoothness-val" class="stat-val">100%</span></div>
+        <div class="progress-container">
+            <div id="smoothness-bar" class="progress-bar optimal" style="width: 100%;"></div>
+        </div>
+        
+        <div class="stat-row"><span>Posture / Neck:</span> <span id="posture-status" class="stat-val" style="color:#38ef7d">Optimal</span></div>
+        
+        <div class="status-box" id="gesture-status">WAITING FOR HANDS...</div>
+    </div>
+
+    <div id="cam-container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="cam-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; transform: scaleX(-1);"></canvas>
+    </div>
+
+    <div id="instructions">
+        Rehab Drive: Raise Open Hands to Accelerate • Smooth Twist to Steer • Fists = Brake
+    </div>
+
+    <div id="companion-hud">
+        <div class="companion-header">
+            <div class="companion-avatar">🔊</div>
+            <div class="companion-title">PhysioBuddy AI</div>
+        </div>
+        <div id="companion-text" class="companion-subtitle">Connecting to speakers...</div>
+        <div id="companion-options" class="companion-options"></div>
+        <div id="player-transcript"></div>
+    </div>
+
+    <div id="game-container"></div>
+
+    <script type="module">
+        // --- GAME CONFIGURATION ---
+        const CONFIG = {
+            maxSpeed: 1.5,
+            acceleration: 0.02,
+            friction: 0.01,
+            turnSpeed: 0.04,
+            camHeight: 5,
+            camDist: 10
+        };
+
+        // --- GLOBAL VARIABLES ---
+        let scene, camera, renderer;
+        let playerCar;
+        let road, cityGroup;
+        let trafficCars = [];
+        let pedestrians = [];
+        let speed = 0;
+        let steering = 0; // -1 to 1
+        let distanceTraveled = 0;
+        let frameId;
+        let lookUpOffset = 0; // For camera tilt
+        let birds = [];
+        let colliders = []; // Array of THREE.Box3
+        let playerBox = new THREE.Box3();
+        let ball, ballVelocity = new THREE.Vector3();
+        let footballFieldBounds = { minX: -100, maxX: 100, minZ: -300, maxZ: -100 }; // Example bounds
+        
+        let controlMode = 'camera'; // or 'keyboard'
+        let keys = { w: false, a: false, s: false, d: false };
+
+        // --- THERAPY STATE VARIABLES ---
+        let therapyElevationPercent = 0;
+        let therapySustainedFrames = 0;
+        let therapySmoothness = 100;
+        let therapyLastAngles = [];
+
+        const TextureManager = {
+            materials: {},
+            init: function(onComplete) {
+                const manager = new THREE.LoadingManager();
+                manager.onLoad = onComplete;
+                const loader = new THREE.TextureLoader(manager);
+                
+                // PBR sets
+                const pbrPaths = ['Facade001_2K-JPG', 'Facade006_2K-JPG'];
+                pbrPaths.forEach(name => {
+                    const prefix = name.split('-')[0];
+                    const color = loader.load(`textures/${name}/${prefix}_Color.jpg`);
+                    const normal = loader.load(`textures/${name}/${prefix}_Normal.jpg`);
+                    const roughness = loader.load(`textures/${name}/${prefix}_Roughness.jpg`);
+                    const metalness = loader.load(`textures/${name}/${prefix}_Metalness.jpg`);
+                    
+                    [color, normal, roughness, metalness].forEach(tex => {
+                        tex.wrapS = THREE.RepeatWrapping;
+                        tex.wrapT = THREE.RepeatWrapping;
+                        tex.colorSpace = THREE.SRGBColorSpace;
+                    });
+
+                    this.materials[prefix] = new THREE.MeshStandardMaterial({
+                        map: color,
+                        normalMap: normal,
+                        roughnessMap: roughness,
+                        metalnessMap: metalness,
+                        roughness: 1, 
+                        metalness: 1
+                    });
+                });
+
+                // Single Textures
+                const singleTex = [
+                    { id: 'Glass1', path: 'TexturesCom_HighRiseGlass0101_3_seamless_S.jpg', r: 0.1, m: 0.8 },
+                    { id: 'Glass2', path: 'TexturesCom_HighRiseGlass0104_3_seamless_S.jpg', r: 0.1, m: 0.9 },
+                    { id: 'Glass3', path: 'TexturesCom_HighRiseGlass0110_4_seamless_S.jpg', r: 0.2, m: 0.7 },
+                    { id: 'Res1', path: 'TexturesCom_HighRiseResidential0098_1_seamless_S.jpg', r: 0.8, m: 0.1 },
+                    { id: 'Res2', path: 'TexturesCom_HighRiseResidential0101_1_seamless_S.jpg', r: 0.7, m: 0.2 },
+                    { id: 'Res3', path: 'TexturesCom_HighRiseResidential0197_2_seamless_S.jpg', r: 0.9, m: 0.1 },
+                    { id: 'Tower1', path: 'TexturesCom_HighRiseTowers0158_3_S.jpg', r: 0.6, m: 0.3 }
+                ];
+
+                singleTex.forEach(texInfo => {
+                    const tex = loader.load(`textures/${texInfo.path}`);
+                    tex.wrapS = THREE.RepeatWrapping;
+                    tex.wrapT = THREE.RepeatWrapping;
+                    tex.colorSpace = THREE.SRGBColorSpace;
+                    this.materials[texInfo.id] = new THREE.MeshStandardMaterial({
+                        map: tex,
+                        roughness: texInfo.r,
+                        metalness: texInfo.m
+                    });
+                });
+
+                // Pavement
+                const paveTex = loader.load('textures/TexturesCom_Pavement_Weave_1K_roughness.jpg');
+                paveTex.wrapS = THREE.RepeatWrapping;
+                paveTex.wrapT = THREE.RepeatWrapping;
+                paveTex.repeat.set(50, 50); // Scale for ground
+                paveTex.colorSpace = THREE.SRGBColorSpace;
+                this.materials['Pavement'] = new THREE.MeshStandardMaterial({
+                    map: paveTex,
+                    roughness: 0.8,
+                    color: 0x999999
+                });
+                
+                // Metal Plates
+                const metalTex = loader.load('textures/TexturesCom_MetalPlatesBare0158_10_seamless_S.jpg');
+                metalTex.wrapS = THREE.RepeatWrapping;
+                metalTex.wrapT = THREE.RepeatWrapping;
+                metalTex.colorSpace = THREE.SRGBColorSpace;
+                this.materials['Metal'] = new THREE.MeshStandardMaterial({
+                    map: metalTex,
+                    roughness: 0.4,
+                    metalness: 0.8
+                });
+            },
+            getRandomBuildingMaterial: function(width, height) {
+                const keys = Object.keys(this.materials).filter(k => k !== 'Pavement' && k !== 'Metal');
+                const key = keys[Math.floor(Math.random() * keys.length)];
+                
+                const mat = this.materials[key].clone();
+                
+                ['map', 'normalMap', 'roughnessMap', 'metalnessMap'].forEach(mapType => {
+                    if (mat[mapType]) {
+                        mat[mapType] = mat[mapType].clone();
+                        mat[mapType].needsUpdate = true;
+                        
+                        // Roughly 1 tile per 10 units wide, 10 units high.
+                        const repeatX = Math.max(1, Math.round(width / 10));
+                        const repeatY = Math.max(1, Math.round(height / 10));
+                        mat[mapType].repeat.set(repeatX, repeatY);
+                    }
+                });
+                
+                return mat;
+            }
+        };
+
+        // --- 1. THREE.JS SETUP ---
+        function init3D() {
+            const container = document.getElementById('game-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue
+            scene.fog = new THREE.Fog(0x87CEEB, 20, 150);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(50, 100, 50);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.left = -50;
+            dirLight.shadow.camera.right = 50;
+            dirLight.shadow.camera.top = 50;
+            dirLight.shadow.camera.bottom = -50;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Build World and Start
+            TextureManager.init(() => {
+                createPlayerCar();
+                createCity();
+                createSky();
+                createBirds();
+                animate();
+            });
+            
+            // Handle Resize
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Keyboard Listeners (Fallback)
+            window.addEventListener('keydown', (e) => {
+                if(e.key.toLowerCase() === 'w') keys.w = true;
+                if(e.key.toLowerCase() === 'a') keys.a = true;
+                if(e.key.toLowerCase() === 's') keys.s = true;
+                if(e.key.toLowerCase() === 'd') keys.d = true;
+            });
+            window.addEventListener('keyup', (e) => {
+                if(e.key.toLowerCase() === 'w') keys.w = false;
+                if(e.key.toLowerCase() === 'a') keys.a = false;
+                if(e.key.toLowerCase() === 's') keys.s = false;
+                if(e.key.toLowerCase() === 'd') keys.d = false;
+            });
+        }
+
+        // --- ASSET GENERATION ---
+        
+        function createSky() {
+            // Add some clouds
+            const cloudGeo = new THREE.SphereGeometry(5, 8, 8);
+            const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+            
+            for(let i=0; i<20; i++) {
+                const cloud = new THREE.Group();
+                const parts = 3 + Math.floor(Math.random() * 3);
+                for(let j=0; j<parts; j++) {
+                    const mesh = new THREE.Mesh(cloudGeo, cloudMat);
+                    mesh.position.set(
+                        (Math.random() - 0.5) * 10,
+                        (Math.random() - 0.5) * 5,
+                        (Math.random() - 0.5) * 5
+                    );
+                    mesh.scale.setScalar(1 + Math.random());
+                    cloud.add(mesh);
+                }
+                cloud.position.set(
+                    (Math.random() * 400) - 200,
+                    40 + Math.random() * 20,
+                    (Math.random() * 400) - 200
+                );
+                scene.add(cloud);
+            }
+        }
+
+        function createBirds() {
+            const birdGeo = new THREE.BufferGeometry();
+            // Simple V shape
+            const vertices = new Float32Array([
+                0.5, 0, 0.2, // Wing tip L
+                0, 0, -0.3,  // Body center
+                -0.5, 0, 0.2 // Wing tip R
+            ]);
+            birdGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            const birdMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
+
+            for(let i=0; i<15; i++) {
+                const bird = new THREE.Mesh(birdGeo, birdMat);
+                bird.position.set(
+                    (Math.random() * 200) - 100,
+                    20 + Math.random() * 30,
+                    (Math.random() * 200) - 100
+                );
+                bird.userData = {
+                    speed: 0.2 + Math.random() * 0.2,
+                    angle: Math.random() * Math.PI * 2
+                };
+                birds.push(bird);
+                scene.add(bird);
+            }
+        }
+
+        function getTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            if (type === 'building') {
+                ctx.fillStyle = '#444';
+                ctx.fillRect(0,0,64,64);
+                ctx.fillStyle = '#ccffcc'; // window light
+                // Draw random windows
+                for(let i=0; i<4; i++) {
+                    for(let j=0; j<8; j++) {
+                        if(Math.random()>0.3) ctx.fillRect(4 + i*16, 4 + j*8, 8, 4);
+                    }
+                }
+            } else if (type === 'road') {
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0,0,64,64);
+                ctx.fillStyle = '#FFF';
+                ctx.fillRect(30, 0, 4, 64); // Center line
+            }
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        function createKDUHospital() {
+            const hospitalGroup = new THREE.Group();
+
+            // 1. Main Central Block (The grey facade)
+            const mainGeo = new THREE.BoxGeometry(50, 30, 10);
+            const mainMat = TextureManager.getRandomBuildingMaterial(50, 30);
+            const mainBuilding = new THREE.Mesh(mainGeo, mainMat);
+            mainBuilding.position.y = 15; // Half height
+            mainBuilding.castShadow = true;
+            mainBuilding.receiveShadow = true;
+            hospitalGroup.add(mainBuilding);
+            
+            // Add to colliders
+            colliders.push(mainBuilding);
+
+            // 2. Side Wings (Glassy look)
+            const wingGeo = new THREE.BoxGeometry(20, 30, 15);
+            const wingMat = new THREE.MeshStandardMaterial({ 
+                color: 0x88ccff, 
+                metalness: 0.8, 
+                roughness: 0.2,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            const leftWing = new THREE.Mesh(wingGeo, wingMat);
+            leftWing.position.set(-35, 15, 5);
+            leftWing.rotation.y = Math.PI / 12; // Slight angle
+            hospitalGroup.add(leftWing);
+
+            const rightWing = new THREE.Mesh(wingGeo, wingMat);
+            rightWing.position.set(35, 15, 5);
+            rightWing.rotation.y = -Math.PI / 12; // Slight angle
+            hospitalGroup.add(rightWing);
+
+            // 3. Logo and Text Texture
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // Background (match wall color roughly)
+            ctx.fillStyle = '#aaaaaa';
+            ctx.fillRect(0, 0, 512, 256);
+
+            // Logo (Approximation of the crest)
+            // Wings/Shield
+            ctx.fillStyle = '#333399'; // Dark Blue
+            ctx.beginPath();
+            ctx.moveTo(256, 40);
+            ctx.lineTo(310, 80);
+            ctx.lineTo(256, 160);
+            ctx.lineTo(202, 80);
+            ctx.fill();
+            
+            // Red accents (Wings)
+            ctx.fillStyle = '#cc3333';
+            ctx.beginPath();
+            ctx.moveTo(256, 80);
+            ctx.lineTo(340, 60);
+            ctx.lineTo(300, 100);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(256, 80);
+            ctx.lineTo(172, 60);
+            ctx.lineTo(212, 100);
+            ctx.fill();
+
+            // Text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor="black";
+            ctx.shadowBlur=4;
+            ctx.fillText("University Hospital KDU", 256, 210);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const logoGeo = new THREE.PlaneGeometry(40, 20);
+            const logoMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+            const logoMesh = new THREE.Mesh(logoGeo, logoMat);
+            logoMesh.position.set(0, 20, 5.1); // Slightly in front of main wall
+            hospitalGroup.add(logoMesh);
+
+            // 4. Bushes at bottom
+            const bushGeo = new THREE.SphereGeometry(1.5, 8, 8);
+            const bushMat = new THREE.MeshStandardMaterial({ color: 0x228b22 });
+            for(let i=-20; i<=20; i+=5) {
+                const bush = new THREE.Mesh(bushGeo, bushMat);
+                bush.position.set(i, 1, 6);
+                hospitalGroup.add(bush);
+            }
+
+            return hospitalGroup;
+        }
+
+        function createWelcomeArch() {
+            const archGroup = new THREE.Group();
+            
+            // Pillars
+            const pillarGeo = new THREE.BoxGeometry(1, 12, 1);
+            const pillarMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            
+            const leftPillar = new THREE.Mesh(pillarGeo, pillarMat);
+            leftPillar.position.set(-14, 6, 0);
+            archGroup.add(leftPillar);
+            
+            const rightPillar = new THREE.Mesh(pillarGeo, pillarMat);
+            rightPillar.position.set(14, 6, 0);
+            archGroup.add(rightPillar);
+            
+            // Banner Board
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            // Board Background
+            ctx.fillStyle = '#002244'; // Navy Blue
+            ctx.fillRect(0, 0, 1024, 256);
+            ctx.strokeStyle = '#FFD700'; // Gold border
+            ctx.lineWidth = 10;
+            ctx.strokeRect(5, 5, 1014, 246);
+            
+            // Text
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText("WELCOME TO", 512, 70);
+            
+            ctx.fillStyle = '#FFD700'; // Gold
+            ctx.font = 'bold 45px Arial';
+            ctx.fillText("GENERAL SIR JOHN KOTELAWALA", 512, 130);
+            ctx.fillText("DEFENCE UNIVERSITY OF SRI LANKA", 512, 190);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const boardGeo = new THREE.PlaneGeometry(30, 7.5); 
+            const boardMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+            const board = new THREE.Mesh(boardGeo, boardMat);
+            board.position.set(0, 9, 0);
+            board.rotation.y = Math.PI; // Face the player
+            
+            archGroup.add(board);
+            
+            return archGroup;
+        }
+
+        function createPlayerCar() {
+            playerCar = new THREE.Group();
+            scene.add(playerCar);
+
+            // Placeholder while loading
+            const bodyGeo = new THREE.BoxGeometry(1.8, 0.8, 4);
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0xff0055, transparent: true, opacity: 0.5 });
+            const placeholder = new THREE.Mesh(bodyGeo, bodyMat);
+            placeholder.position.y = 0.8;
+            playerCar.add(placeholder);
+
+            // Load Real Car Model
+            const loader = new THREE.GLTFLoader();
+            loader.load('car.glb', (gltf) => {
+                playerCar.remove(placeholder);
+                const model = gltf.scene;
+                
+                // Scale and center based on bounds (similar to Python logic)
+                const box = new THREE.Box3().setFromObject(model);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 4.0 / maxDim; // Adjust to match world scale
+                model.scale.setScalar(scale);
+                
+                // Adjust position so wheels are on ground
+                const newBox = new THREE.Box3().setFromObject(model);
+                model.position.y = -newBox.min.y;
+                
+                model.traverse(child => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                playerCar.add(model);
+                log("3D Car Model Loaded");
+            }, undefined, (error) => {
+                log("Error loading car model: " + error);
+            });
+        }
+
+        function createStatue() {
+            const statueGroup = new THREE.Group();
+
+            // 1. Pedestal
+            const pedGeo = new THREE.BoxGeometry(4, 6, 4);
+            const pedMat = new THREE.MeshStandardMaterial({ color: 0x555555 }); // Dark grey stone
+            const pedestal = new THREE.Mesh(pedGeo, pedMat);
+            pedestal.position.y = 3;
+            pedestal.castShadow = true;
+            pedestal.receiveShadow = true;
+            statueGroup.add(pedestal);
+
+            // Add to colliders
+            colliders.push(pedestal);
+
+            // 2. The Statue (Abstract Human Figure)
+            const mat = new THREE.MeshStandardMaterial({ color: 0xcd7f32, metalness: 0.6, roughness: 0.4 }); // Bronze
+
+            // Legs
+            const legGeo = new THREE.BoxGeometry(0.8, 4, 0.8);
+            const legL = new THREE.Mesh(legGeo, mat);
+            legL.position.set(-0.8, 7, 0);
+            statueGroup.add(legL);
+            const legR = new THREE.Mesh(legGeo, mat);
+            legR.position.set(0.8, 7, 0);
+            statueGroup.add(legR);
+
+            // Torso
+            const torsoGeo = new THREE.BoxGeometry(2.5, 4, 1.5);
+            const torso = new THREE.Mesh(torsoGeo, mat);
+            torso.position.set(0, 11, 0);
+            statueGroup.add(torso);
+
+            // Head
+            const headGeo = new THREE.SphereGeometry(1, 16, 16);
+            const head = new THREE.Mesh(headGeo, mat);
+            head.position.set(0, 14, 0);
+            statueGroup.add(head);
+
+            // Arms
+            const armGeo = new THREE.BoxGeometry(0.7, 3.5, 0.7);
+            const armL = new THREE.Mesh(armGeo, mat);
+            armL.position.set(-1.8, 11, 0);
+            armL.rotation.z = 0.2;
+            statueGroup.add(armL);
+            const armR = new THREE.Mesh(armGeo, mat);
+            armR.position.set(1.8, 11, 0);
+            armR.rotation.z = -0.2;
+            statueGroup.add(armR);
+
+            // 3. Text Plaque
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // Background
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, 0, 512, 256);
+            ctx.strokeStyle = '#DAA520'; // Goldenrod border
+            ctx.lineWidth = 10;
+            ctx.strokeRect(5, 5, 502, 246);
+
+            // Text
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#DAA520'; // Gold text
+            ctx.font = 'bold 40px Arial';
+            ctx.fillText("MRA HASEN AL BANNA", 256, 100);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText("TEAM BLACK CAP XTREME", 256, 180);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const plaqueGeo = new THREE.PlaneGeometry(3.8, 2);
+            const plaqueMat = new THREE.MeshBasicMaterial({ map: texture });
+            const plaque = new THREE.Mesh(plaqueGeo, plaqueMat);
+            plaque.position.set(0, 4, 2.01); // On front of pedestal
+            statueGroup.add(plaque);
+
+            return statueGroup;
+        }
+
+        function createCity() {
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+            const groundMat = TextureManager.materials['Pavement']; // Use pavement for ground
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            cityGroup = new THREE.Group();
+            
+            const roadTex = getTexture('road');
+            roadTex.repeat.set(1, 20);
+            
+            // Generate Grid
+            const numBlocks = 10;
+            const blockSize = 60;
+            
+            // Main Roads
+            for (let i = -numBlocks; i <= numBlocks; i++) {
+                // Vertical Road
+                const rGeo = new THREE.PlaneGeometry(10, 2000);
+                const rMat = new THREE.MeshStandardMaterial({ map: roadTex });
+                const r = new THREE.Mesh(rGeo, rMat);
+                r.rotation.x = -Math.PI / 2;
+                r.position.set(i * blockSize, 0.05, 0);
+                r.receiveShadow = true;
+                cityGroup.add(r);
+
+                // Buildings & Elements
+                if (i === 0) continue; // Keep center clear initially
+
+                // Place KDU Hospital specifically at a prominent spot
+                if (i === -1) {
+                    const kdu = createKDUHospital();
+                    kdu.position.set(-80, 0, -100); // Left side, ahead
+                    kdu.rotation.y = Math.PI / 2; // Face the road
+                    cityGroup.add(kdu);
+                }
+
+                // Place Statue
+                if (i === 1) {
+                    const statue = createStatue();
+                    statue.position.set(40, 0, -50); // Right side
+                    statue.rotation.y = -Math.PI / 4; // Face somewhat towards start
+                    cityGroup.add(statue);
+                }
+
+                for (let j = -numBlocks; j <= numBlocks; j++) {
+                    // Skip the spot where we put the hospital
+                    if (i === -1 && Math.abs(j * blockSize - (-100)) < 40) continue;
+
+                    if (Math.random() > 0.3) {
+                        const h = Math.random() * 20 + 5;
+                        const w = Math.random() * 10 + 10;
+                        const d = Math.random() * 10 + 10;
+                        
+                        const bGeo = new THREE.BoxGeometry(w, h, d);
+                        const bMat = TextureManager.getRandomBuildingMaterial(w, h);
+                        const b = new THREE.Mesh(bGeo, bMat);
+                        b.position.set(i * blockSize - 20, h/2, j * blockSize);
+                        b.castShadow = true;
+                        b.receiveShadow = true;
+                        cityGroup.add(b);
+
+                        // Add to colliders
+                        colliders.push(b);
+                    }
+                    
+                    // Trees
+                    if (Math.random() > 0.5) {
+                        const tGroup = new THREE.Group();
+                        const trunk = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.3, 0.5, 3),
+                            new THREE.MeshStandardMaterial({color: 0x5D4037}) // Rich brown
+                        );
+                        trunk.position.y = 1.5;
+                        
+                        // Multi-layered leaves for a better look
+                        const leafMat = new THREE.MeshStandardMaterial({color: 0x2E7D32});
+                        for(let l=0; l<3; l++) {
+                            const leaves = new THREE.Mesh(
+                                new THREE.ConeGeometry(2 - l*0.5, 4),
+                                leafMat
+                            );
+                            leaves.position.y = 4 + l*1.5;
+                            tGroup.add(leaves);
+                        }
+                        
+                        tGroup.add(trunk);
+                        tGroup.position.set(i * blockSize + 15, 0, j * blockSize + 15);
+                        cityGroup.add(tGroup);
+                    }
+                }
+            }
+            scene.add(cityGroup);
+
+            createMountains();
+            createFootballGround();
+            createBall();
+            
+            const arch = createWelcomeArch();
+            arch.position.set(0, 0, 25);
+            scene.add(arch);
+
+            createTraffic();
+            createPedestrians();
+
+            // Update world matrices and compute static colliders properly
+            scene.updateMatrixWorld(true);
+            colliders = colliders.map(mesh => new THREE.Box3().setFromObject(mesh));
+        }
+
+        function createTraffic() {
+            const loader = new THREE.GLTFLoader();
+            loader.load('car.glb', (gltf) => {
+                const baseCar = gltf.scene;
+                const carColors = [0xff0000, 0x0000ff, 0xffff00, 0xffffff, 0x00ff00, 0xff00ff];
+                
+                for (let k = 0; k < 20; k++) {
+                    const tCar = baseCar.clone();
+                    const color = carColors[Math.floor(Math.random() * carColors.length)];
+                    tCar.traverse(child => {
+                        if (child.isMesh && child.material) {
+                            child.material = child.material.clone();
+                            if (child.name.toLowerCase().includes('body')) {
+                                child.material.color.set(color);
+                            }
+                        }
+                    });
+
+                    const box = new THREE.Box3().setFromObject(tCar);
+                    const size = box.getSize(new THREE.Vector3());
+                    const scale = 4.0 / Math.max(size.x, size.y, size.z);
+                    tCar.scale.setScalar(scale);
+
+                    tCar.userData = { 
+                        speed: (Math.random() * 0.5) + 0.2, 
+                        laneX: (Math.floor(Math.random() * 10) - 5) * 60
+                    };
+                    tCar.position.set(tCar.userData.laneX, 0, (Math.random() * 800) - 400);
+                    trafficCars.push(tCar);
+                    scene.add(tCar);
+                }
+            });
+        }
+
+        function createPedestrians() {
+            for (let p = 0; p < 30; p++) {
+                const pGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
+                const pMat = new THREE.MeshStandardMaterial({color: 0xffaa00});
+                const ped = new THREE.Mesh(pGeo, pMat);
+                ped.position.set((Math.random()*400)-200, 0.9, (Math.random()*400)-200);
+                ped.userData = {
+                    dx: (Math.random()-0.5) * 0.1,
+                    dz: (Math.random()-0.5) * 0.1
+                };
+                pedestrians.push(ped);
+                scene.add(ped);
+            }
+        }
+
+        function createMountains() {
+            const mountGeo = new THREE.ConeGeometry(50, 100, 4);
+            const colors = [0x4a7c59, 0x6b8e23, 0x556b2f];
+            
+            for(let i=0; i<12; i++) {
+                const mat = new THREE.MeshStandardMaterial({ 
+                    color: colors[i % colors.length],
+                    flatShading: true
+                });
+                const mount = new THREE.Mesh(mountGeo, mat);
+                const angle = (i / 12) * Math.PI * 2;
+                const dist = 400 + Math.random() * 100;
+                mount.position.set(
+                    Math.cos(angle) * dist,
+                    40, // Base at ground
+                    Math.sin(angle) * dist
+                );
+                mount.scale.y = 0.5 + Math.random();
+                mount.scale.x = mount.scale.z = 1 + Math.random();
+                mount.rotation.y = Math.random() * Math.PI;
+                scene.add(mount);
+            }
+        }
+        function createFootballGround() {
+            const group = new THREE.Group();
+            
+            // Grass field
+            const fieldGeo = new THREE.PlaneGeometry(80, 120);
+            const fieldMat = new THREE.MeshStandardMaterial({ color: 0x2e8b57 }); // Sea green
+            const field = new THREE.Mesh(fieldGeo, fieldMat);
+            field.rotation.x = -Math.PI / 2;
+            field.position.y = 0.1;
+            field.receiveShadow = true;
+            group.add(field);
+
+            // White lines
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            
+            // Outer boundary
+            const outerGeo = new THREE.PlaneGeometry(80, 120);
+            const outer = new THREE.Mesh(outerGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true }));
+            outer.rotation.x = -Math.PI / 2;
+            outer.position.y = 0.11;
+            group.add(outer);
+
+            // Center circle
+            const circleGeo = new THREE.RingGeometry(8, 8.5, 32);
+            const circle = new THREE.Mesh(circleGeo, lineMat);
+            circle.rotation.x = -Math.PI / 2;
+            circle.position.y = 0.12;
+            group.add(circle);
+
+            // Center line
+            const midLineGeo = new THREE.PlaneGeometry(80, 0.5);
+            const midLine = new THREE.Mesh(midLineGeo, lineMat);
+            midLine.rotation.x = -Math.PI / 2;
+            midLine.position.y = 0.11;
+            group.add(midLine);
+
+            // Goals
+            const goalMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+            const createGoal = (posZ) => {
+                const goal = new THREE.Group();
+                const postGeo = new THREE.CylinderGeometry(0.2, 0.2, 5);
+                const barGeo = new THREE.CylinderGeometry(0.2, 0.2, 15);
+                
+                const p1 = new THREE.Mesh(postGeo, goalMat);
+                p1.position.set(-7.5, 2.5, 0);
+                const p2 = new THREE.Mesh(postGeo, goalMat);
+                p2.position.set(7.5, 2.5, 0);
+                const bar = new THREE.Mesh(barGeo, goalMat);
+                bar.rotation.z = Math.PI / 2;
+                bar.position.set(0, 5, 0);
+                
+                goal.add(p1, p2, bar);
+                goal.position.z = posZ;
+                return goal;
+            };
+
+            group.add(createGoal(-58));
+            group.add(createGoal(58));
+
+            group.position.set(0, 0, -200); // Position it in the city
+            scene.add(group);
+            
+            footballFieldBounds = { minX: -40, maxX: 40, minZ: -260, maxZ: -140 };
+        }
+
+        function createBall() {
+            const ballGeo = new THREE.SphereGeometry(1, 32, 32);
+            // Create a simple football-like texture with canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, 128, 128);
+            ctx.fillStyle = 'black';
+            for(let i=0; i<10; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random()*128, Math.random()*128, 15, 0, Math.PI*2);
+                ctx.fill();
+            }
+            const ballTex = new THREE.CanvasTexture(canvas);
+            const ballMat = new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.4 });
+            
+            ball = new THREE.Mesh(ballGeo, ballMat);
+            ball.position.set(0, 1, -200);
+            ball.castShadow = true;
+            scene.add(ball);
+        }
+
+        // --- GAME LOOP ---
+        function animate() {
+            frameId = requestAnimationFrame(animate);
+
+            // 1. Input Logic
+            let targetSpeed = 0;
+            let turnInput = 0;
+
+            if (controlMode === 'keyboard') {
+                if (keys.w) targetSpeed = CONFIG.maxSpeed;
+                else if (keys.s) targetSpeed = -CONFIG.maxSpeed / 2;
+                
+                if (keys.a) turnInput = 1;
+                if (keys.d) turnInput = -1;
+            } else {
+                // Hand Gesture Inputs (Global variables updated by MediaPipe)
+                if (window.gestureThrottle === 1) {
+                    // Therapeutic speed scaling: accelerating rewards higher arm elevation
+                    const therapeuticMultiplier = 0.8 + (therapyElevationPercent / 100) * 0.7; // 0.8x to 1.5x max speed
+                    targetSpeed = CONFIG.maxSpeed * therapeuticMultiplier;
+                }
+                else if (window.gestureThrottle === -1) targetSpeed = -CONFIG.maxSpeed / 2;
+
+                turnInput = window.gestureTurn || 0;
+            }
+
+            // 2. Physics
+            // Acceleration
+            if (targetSpeed > speed) speed += CONFIG.acceleration;
+            else if (targetSpeed < speed) speed -= CONFIG.acceleration;
+            
+            // Friction/Decay
+            if (Math.abs(targetSpeed) < 0.01) speed *= 0.95;
+
+            // Apply Movement
+            // Always update playerBox if stationary, so traffic cars can collide with it
+            playerBox.setFromObject(playerCar);
+
+            if (Math.abs(speed) > 0.01) {
+                const oldPos = playerCar.position.clone();
+                playerCar.translateZ(speed);
+                playerCar.rotation.y += turnInput * CONFIG.turnSpeed * (speed / CONFIG.maxSpeed);
+                
+                // Collision Check
+                playerBox.setFromObject(playerCar);
+                let hit = false;
+                
+                // Environment collision
+                for (const collider of colliders) {
+                    if (playerBox.intersectsBox(collider)) {
+                        hit = true;
+                        break;
+                    }
+                }
+                
+                // Traffic collision
+                for (const tCar of trafficCars) {
+                    const tBox = new THREE.Box3().setFromObject(tCar);
+                    if (playerBox.intersectsBox(tBox)) {
+                        hit = true;
+                        break;
+                    }
+                }
+
+                if (hit) {
+                    playerCar.position.copy(oldPos);
+                    playerBox.setFromObject(playerCar); // Reset box after bounce
+                    speed *= -0.5; // Bounce back
+                }
+
+                // Visual Body Roll
+                playerCar.children[0].rotation.z = -turnInput * 0.1; 
+                
+                distanceTraveled += Math.abs(speed);
+            }
+
+            // 2.5 Ball Physics
+            if (ball) {
+                // Ball Friction
+                ballVelocity.multiplyScalar(0.98);
+                
+                // Ball Movement
+                ball.position.add(ballVelocity);
+                
+                // Ball-Car Collision
+                const dist = ball.position.distanceTo(playerCar.position);
+                if (dist < 3) {
+                    const dir = ball.position.clone().sub(playerCar.position).normalize();
+                    ballVelocity.add(dir.multiplyScalar(speed * 0.5 + 0.1));
+                }
+
+                // Boundary Logic for Ball
+                if (ball.position.x < footballFieldBounds.minX) { ball.position.x = footballFieldBounds.minX; ballVelocity.x *= -0.5; }
+                if (ball.position.x > footballFieldBounds.maxX) { ball.position.x = footballFieldBounds.maxX; ballVelocity.x *= -0.5; }
+                if (ball.position.z < footballFieldBounds.minZ) { ball.position.z = footballFieldBounds.minZ; ballVelocity.z *= -0.5; }
+                if (ball.position.z > footballFieldBounds.maxZ) { ball.position.z = footballFieldBounds.maxZ; ballVelocity.z *= -0.5; }
+                
+                // Ball rolling animation
+                ball.rotation.x += ballVelocity.z;
+                ball.rotation.z -= ballVelocity.x;
+            }
+
+            // 3. Traffic Logic
+            const tBoxes = trafficCars.map(car => new THREE.Box3().setFromObject(car));
+            
+            trafficCars.forEach((car, i) => {
+                const oldPos = car.position.clone();
+                car.translateZ(car.userData.speed);
+                tBoxes[i].setFromObject(car);
+                
+                let trafficHit = false;
+                
+                if (tBoxes[i].intersectsBox(playerBox)) {
+                    trafficHit = true;
+                } else {
+                    for (let j = 0; j < trafficCars.length; j++) {
+                        if (i === j) continue;
+                        if (tBoxes[i].intersectsBox(tBoxes[j])) {
+                            trafficHit = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (trafficHit) {
+                    car.position.copy(oldPos);
+                    tBoxes[i].setFromObject(car);
+                } else {
+                    if (car.position.z > 400) {
+                        car.position.z = -400;
+                        car.userData.laneX = (Math.floor(Math.random() * 10) - 5) * 60;
+                        car.position.x = car.userData.laneX;
+                    }
+                    if (car.position.z < -400) {
+                        car.position.z = 400;
+                        car.userData.laneX = (Math.floor(Math.random() * 10) - 5) * 60;
+                        car.position.x = car.userData.laneX;
+                    }
+                    tBoxes[i].setFromObject(car);
+                }
+            });
+
+            // 4. Pedestrian Logic
+            pedestrians.forEach(ped => {
+                ped.position.x += ped.userData.dx;
+                ped.position.z += ped.userData.dz;
+                // Simple turn around
+                if (Math.random() < 0.02) {
+                    ped.userData.dx = (Math.random()-0.5) * 0.1;
+                    ped.userData.dz = (Math.random()-0.5) * 0.1;
+                }
+            });
+
+            // 5. Camera Follow
+            const relativeOffset = new THREE.Vector3(0, CONFIG.camHeight, -CONFIG.camDist);
+            const cameraOffset = relativeOffset.applyMatrix4(playerCar.matrixWorld);
+            camera.position.lerp(cameraOffset, 0.1);
+            
+            // Look At Logic (Modified for Face Tracking)
+            const lookTarget = playerCar.position.clone();
+            // If looking up (lookUpOffset > 0), we want camera to look HIGHER.
+            // Actually, if we look up, the camera should tilt up.
+            // lookAt target Y should increase.
+            lookTarget.y += lookUpOffset * 10; 
+            
+            camera.lookAt(lookTarget);
+
+            // 6. Birds Animation
+            birds.forEach(bird => {
+                bird.position.x += Math.cos(bird.userData.angle) * bird.userData.speed;
+                bird.position.z += Math.sin(bird.userData.angle) * bird.userData.speed;
+                // Flapping
+                bird.rotation.z = Math.sin(Date.now() * 0.01) * 0.5;
+                // Wrap around
+                if(Math.abs(bird.position.x) > 200) bird.position.x *= -1;
+                if(Math.abs(bird.position.z) > 200) bird.position.z *= -1;
+            });
+
+            // 7. Render
+            renderer.render(scene, camera);
+            
+            // Update HUD
+            document.getElementById('speed-val').innerText = Math.floor(Math.abs(speed) * 100) + ' km/h';
+            document.getElementById('dist-val').innerText = Math.floor(distanceTraveled) + ' m';
+
+            // Check AI Companion voice triggers
+            if (typeof CompanionAI !== 'undefined') {
+                CompanionAI.checkTriggers(distanceTraveled);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function enableKeyboardMode() {
+            speed = 0;
+            steering = 0;
+            controlMode = 'keyboard';
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('gesture-status').innerText = "KEYBOARD MODE";
+            document.getElementById('instructions').innerText = "WASD to Drive";
+        }
+        window.enableKeyboardMode = enableKeyboardMode;
+
+        // --- COMPUTER VISION (MEDIAPIPE TASKS) ---
+        import { HandLandmarker, FaceLandmarker, FilesetResolver, DrawingUtils } from "./vision_bundle.mjs";
+
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('cam-canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const statusBox = document.getElementById('gesture-status');
+        
+        let handLandmarker;
+        let faceLandmarker;
+        let drawingUtils;
+        let lastVideoTime = -1;
+
+        async function initMediaPipe() {
+            try {
+                const vision = await FilesetResolver.forVisionTasks(
+                    "wasm"
+                );
+                
+                handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: `hand_landmarker.task`,
+                        delegate: "GPU"
+                    },
+                    runningMode: "VIDEO",
+                    numHands: 2
+                });
+
+                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                        delegate: "GPU"
+                    },
+                    runningMode: "VIDEO"
+                });
+
+                drawingUtils = new DrawingUtils(canvasCtx);
+                log("MediaPipe Tasks Vision Initialized");
+                
+                startCamera();
+            } catch (err) {
+                log("MediaPipe Init Error: " + err);
+            }
+        }
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
+                .then((stream) => {
+                    videoElement.srcObject = stream;
+                    videoElement.addEventListener('loadeddata', predictWebcam);
+                    log("Camera started");
+                })
+                .catch((err) => {
+                    log("Camera Error: " + err.message);
+                    document.getElementById('loading-text').innerText = "Camera Access Denied.";
+                    document.getElementById('controls-fallback').style.display = 'block';
+                });
+        }
+
+        async function predictWebcam() {
+            if (videoElement.currentTime !== lastVideoTime) {
+                lastVideoTime = videoElement.currentTime;
+                const startTimeMs = performance.now();
+                
+                const handResults = handLandmarker.detectForVideo(videoElement, startTimeMs);
+                const faceResults = faceLandmarker.detectForVideo(videoElement, startTimeMs);
+                
+                processResults(handResults, faceResults);
+            }
+            window.requestAnimationFrame(predictWebcam);
+        }
+
+        function processResults(handResults, faceResults) {
+            // Clear Loader
+            if (document.getElementById('loader').style.display !== 'none') {
+                document.getElementById('loader').style.display = 'none';
+            }
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            let status = "NO HANDS";
+            window.gestureThrottle = 0;
+            window.gestureTurn = 0;
+
+            // --- HAND TRACKING ---
+            if (handResults.landmarks && handResults.landmarks.length > 0) {
+                for (const landmarks of handResults.landmarks) {
+                    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 2 });
+                    drawingUtils.drawLandmarks(landmarks, { color: "#FF0000", lineWidth: 1 });
+                }
+
+                if (handResults.landmarks.length >= 2) {
+                    // Logic to find left vs right hand (based on X position)
+                    const sortedHands = [...handResults.landmarks].sort((a, b) => a[0].x - b[0].x);
+                    const leftHand = sortedHands[0];
+                    const rightHand = sortedHands[1];
+
+                    const w1 = leftHand[0];
+                    const w2 = rightHand[0];
+                    
+                    const dy = w2.y - w1.y;
+                    const dx = w2.x - w1.x;
+                    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                    if (angle > 15) {
+                        window.gestureTurn = -1;
+                        status = "TURNING RIGHT";
+                    } else if (angle < -15) {
+                        window.gestureTurn = 1;
+                        status = "TURNING LEFT";
+                    } else {
+                        status = "STRAIGHT";
+                    }
+
+                    // Calculate average Arm Elevation (Y goes from 0 top to 1 bottom)
+                    // Resting level roughly Y=0.8, elevated target level roughly Y=0.3
+                    const avgY = (w1.y + w2.y) / 2;
+                    therapyElevationPercent = Math.max(0, Math.min(100, Math.round(((0.8 - avgY) / 0.5) * 100)));
+                    
+                    const elBar = document.getElementById('elevation-bar');
+                    const elVal = document.getElementById('elevation-val');
+                    if (elBar && elVal) {
+                        elBar.style.width = therapyElevationPercent + '%';
+                        elVal.innerText = therapyElevationPercent + '%';
+                        if (therapyElevationPercent > 60) elBar.className = 'progress-bar optimal';
+                        else if (therapyElevationPercent > 30) elBar.className = 'progress-bar high';
+                        else elBar.className = 'progress-bar';
+                    }
+
+                    // Sustained Elevation Tracking (holding above 35% height)
+                    if (therapyElevationPercent >= 35) {
+                        therapySustainedFrames++;
+                    }
+                    const sustainedSec = Math.floor(therapySustainedFrames / 30);
+                    const susVal = document.getElementById('sustained-val');
+                    if (susVal) susVal.innerText = sustainedSec + 's';
+
+                    // Steering Smoothness Calculation (rewarding fluid, controlled wrist rotations)
+                    therapyLastAngles.push(angle);
+                    if (therapyLastAngles.length > 5) therapyLastAngles.shift();
+                    
+                    let angleDiffSum = 0;
+                    for (let a = 1; a < therapyLastAngles.length; a++) {
+                        angleDiffSum += Math.abs(therapyLastAngles[a] - therapyLastAngles[a-1]);
+                    }
+                    const avgJerk = therapyLastAngles.length > 1 ? (angleDiffSum / (therapyLastAngles.length - 1)) : 0;
+                    therapySmoothness = Math.max(0, Math.min(100, Math.round(100 - (avgJerk * 4))));
+                    
+                    const smBar = document.getElementById('smoothness-bar');
+                    const smVal = document.getElementById('smoothness-val');
+                    if (smBar && smVal) {
+                        smBar.style.width = therapySmoothness + '%';
+                        smVal.innerText = therapySmoothness + '%';
+                        if (therapySmoothness > 70) smBar.className = 'progress-bar optimal';
+                        else if (therapySmoothness > 40) smBar.className = 'progress-bar high';
+                        else smBar.className = 'progress-bar';
+                    }
+
+                    const isHandOpen = (hand) => (hand[8].y < hand[5].y) && (hand[12].y < hand[9].y);
+                    const h1Open = isHandOpen(leftHand);
+                    const h2Open = isHandOpen(rightHand);
+
+                    // Therapeutic condition: Drive forward when hands are open AND elevated > 25%
+                    if (h1Open && h2Open) {
+                        if (therapyElevationPercent >= 25) {
+                            window.gestureThrottle = 1;
+                            status += " - GOING";
+                        } else {
+                            window.gestureThrottle = 0;
+                            status += " - RAISE ARMS TO DRIVE";
+                        }
+                    } else if (!h1Open && !h2Open) {
+                        window.gestureThrottle = -1;
+                        status += " - BRAKING";
+                    }
+                } else {
+                    status = "NEED 2 HANDS";
+                }
+            }
+            statusBox.innerText = status;
+
+            // --- FACE TRACKING ---
+            const faceStatusText = document.getElementById('face-status');
+            const postureStatusText = document.getElementById('posture-status');
+            if (faceResults.faceLandmarks && faceResults.faceLandmarks.length > 0) {
+                const landmarks = faceResults.faceLandmarks[0];
+                const nose = landmarks[4];
+                const topHead = landmarks[10];
+                const chin = landmarks[152];
+                
+                const faceHeight = chin.y - topHead.y;
+                const noseRelY = (nose.y - topHead.y) / faceHeight;
+                
+                if (noseRelY < 0.40) {
+                    lookUpOffset = Math.min((0.40 - noseRelY) * 5, 2);
+                    if (faceStatusText) {
+                        faceStatusText.innerText = "LOOKING UP";
+                        faceStatusText.style.color = "#00ff00";
+                    }
+                    if (postureStatusText) {
+                        postureStatusText.innerText = "Neck Extended";
+                        postureStatusText.style.color = "#ffeb3b";
+                    }
+                } else {
+                    lookUpOffset = 0;
+                    if (faceStatusText) {
+                        faceStatusText.innerText = "DETECTED";
+                        faceStatusText.style.color = "#ffff00";
+                    }
+                    if (postureStatusText) {
+                        postureStatusText.innerText = "Optimal Alignment";
+                        postureStatusText.style.color = "#38ef7d";
+                    }
+                }
+            } else {
+                if (faceStatusText) {
+                    faceStatusText.innerText = "NOT DETECTED";
+                    faceStatusText.style.color = "red";
+                }
+                if (postureStatusText) {
+                    postureStatusText.innerText = "Slouching / Lost";
+                    postureStatusText.style.color = "#ff416c";
+                }
+            }
+            
+            // Check proactive buddy face telemetry
+            if (typeof CompanionAI !== 'undefined') {
+                CompanionAI.checkFaceState(faceResults);
+            }
+            
+            canvasCtx.restore();
+        }
+
+        // --- CONVERSATIONAL AI COMPANION ---
+        const CompanionAI = {
+            hud: null,
+            textEl: null,
+            optionsEl: null,
+            transcriptEl: null,
+            synth: window.speechSynthesis,
+            recognition: null,
+            voices: [],
+            hasSpokenStart: false,
+            hasSpokenNutrition: false,
+            hasSpokenWorkout: false,
+            isSpeaking: false,
+            isListening: false,
+            
+            // Proactive Buddy Face State tracking
+            lastSpokenTime: 0,
+            faceLostFrames: 0,
+            neckExtendedFrames: 0,
+            optimalFrames: 0,
+
+            init: function() {
+                this.hud = document.getElementById('companion-hud');
+                this.textEl = document.getElementById('companion-text');
+                this.optionsEl = document.getElementById('companion-options');
+                this.transcriptEl = document.getElementById('player-transcript');
+                
+                // Initialize Speech Recognition
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    this.recognition = new SpeechRecognition();
+                    this.recognition.continuous = false;
+                    this.recognition.lang = 'en-US';
+                    this.recognition.interimResults = true;
+                    this.recognition.maxAlternatives = 1;
+                }
+
+                const loadVoices = () => {
+                    if (this.synth) this.voices = this.synth.getVoices();
+                };
+                loadVoices();
+                if (this.synth && this.synth.onvoiceschanged !== undefined) {
+                    this.synth.onvoiceschanged = loadVoices;
+                }
+            },
+
+            speak: function(text, options = []) {
+                if (!this.synth) return;
+                this.synth.cancel();
+                if (this.recognition && this.isListening) {
+                    try { this.recognition.stop(); } catch(e){}
+                }
+
+                if (this.hud) this.hud.style.display = 'block';
+                if (this.textEl) this.textEl.innerText = text;
+                if (this.transcriptEl) {
+                    this.transcriptEl.style.display = 'none';
+                    this.transcriptEl.innerText = '';
+                }
+                
+                const avatarEl = document.querySelector('.companion-avatar');
+                if (avatarEl) avatarEl.className = 'companion-avatar';
+
+                if (this.optionsEl) {
+                    this.optionsEl.innerHTML = '';
+                    options.forEach(opt => {
+                        const btn = document.createElement('button');
+                        btn.className = 'companion-btn';
+                        btn.innerText = opt.label;
+                        btn.onclick = () => {
+                            if (this.recognition && this.isListening) {
+                                try { this.recognition.stop(); } catch(e){}
+                            }
+                            this.optionsEl.innerHTML = '';
+                            this.speak(opt.reply);
+                        };
+                        this.optionsEl.appendChild(btn);
+                    });
+                }
+
+                const utterThis = new SpeechSynthesisUtterance(text);
+                const enVoice = this.voices.find(v => v.lang.includes('en-') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Female')));
+                if (enVoice) utterThis.voice = enVoice;
+                
+                utterThis.pitch = 1.1;
+                utterThis.rate = 0.95;
+
+                utterThis.onstart = () => { this.isSpeaking = true; };
+                utterThis.onend = () => { 
+                    this.isSpeaking = false; 
+                    if (options.length > 0) {
+                        // Start active voice listening mode!
+                        this.listenForReply(options);
+                    } else {
+                        setTimeout(() => {
+                            if (!this.isSpeaking && !this.isListening && this.optionsEl && this.optionsEl.children.length === 0) {
+                                if (this.hud) this.hud.style.display = 'none';
+                            }
+                        }, 4000);
+                    }
+                };
+                utterThis.onerror = () => { this.isSpeaking = false; };
+
+                this.synth.speak(utterThis);
+            },
+
+            listenForReply: function(options) {
+                if (!this.recognition) return;
+                this.isListening = true;
+                
+                const avatarEl = document.querySelector('.companion-avatar');
+                if (avatarEl) avatarEl.className = 'companion-avatar listening';
+
+                if (this.transcriptEl) {
+                    this.transcriptEl.style.display = 'block';
+                    this.transcriptEl.innerText = '🎤 Listening for your voice...';
+                }
+
+                let finalTranscript = '';
+
+                this.recognition.onresult = (event) => {
+                    let interim = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        } else {
+                            interim += event.results[i][0].transcript;
+                        }
+                    }
+                    const displayTxt = finalTranscript || interim;
+                    if (this.transcriptEl && displayTxt) {
+                        this.transcriptEl.innerText = '🎤 You: "' + displayTxt + '"';
+                    }
+
+                    // Check semantic matching if final result is returned
+                    if (finalTranscript) {
+                        const lower = finalTranscript.toLowerCase();
+                        let matchedOpt = null;
+                        
+                        // Intelligent keyword search across reply options
+                        options.forEach(opt => {
+                            const lblLower = opt.label.toLowerCase();
+                            const words = lblLower.split(' ').filter(w => w.length > 3);
+                            words.forEach(w => {
+                                if (lower.includes(w)) matchedOpt = opt;
+                            });
+                        });
+
+                        // Semantic fallbacks if direct matching misses
+                        if (!matchedOpt) {
+                            if (lower.includes('great') || lower.includes('good') || lower.includes('protein') || lower.includes('yes')) {
+                                matchedOpt = options[0];
+                            } else if (lower.includes('stiff') || lower.includes('carb') || lower.includes('snack') || lower.includes('no')) {
+                                matchedOpt = options[1] || options[0];
+                            } else if (lower.includes('haven') || lower.includes('not') || lower.includes('park')) {
+                                matchedOpt = options[2] || options[options.length - 1];
+                            }
+                        }
+
+                        if (matchedOpt) {
+                            this.recognition.stop();
+                            setTimeout(() => {
+                                if (this.optionsEl) this.optionsEl.innerHTML = '';
+                                this.speak(matchedOpt.reply);
+                            }, 600);
+                        }
+                    }
+                };
+
+                this.recognition.onerror = () => {
+                    this.isListening = false;
+                    if (avatarEl) avatarEl.className = 'companion-avatar';
+                    if (this.transcriptEl) this.transcriptEl.innerText = '🎤 Speak clearly or click an option below';
+                };
+
+                this.recognition.onend = () => {
+                    this.isListening = false;
+                    if (avatarEl) avatarEl.className = 'companion-avatar';
+                };
+
+                try {
+                    this.recognition.start();
+                } catch(e) {}
+            },
+
+            checkFaceState: function(faceResults) {
+                if (this.isSpeaking || this.isListening) return;
+                const now = Date.now();
+                if (now - this.lastSpokenTime < 30000) return;
+
+                const hasFace = faceResults && faceResults.faceLandmarks && faceResults.faceLandmarks.length > 0;
+
+                if (!hasFace) {
+                    this.faceLostFrames++;
+                    this.optimalFrames = 0;
+                    if (this.faceLostFrames > 90) {
+                        this.faceLostFrames = 0;
+                        this.lastSpokenTime = now;
+                        this.speak(
+                            "Hey partner! I lost sight of your face. I'm right here in the passenger seat with you—let's make sure you're aligned with the camera so we can cruise together safely!",
+                            [
+                                { label: "I'm back, let's drive!", reply: "Awesome! Centered and ready. Let's keep those arms comfortably elevated." }
+                            ]
+                        );
+                        return;
+                    }
+                } else {
+                    this.faceLostFrames = 0;
+                    const landmarks = faceResults.faceLandmarks[0];
+                    const nose = landmarks[4];
+                    const topHead = landmarks[10];
+                    const chin = landmarks[152];
+                    const faceHeight = chin.y - topHead.y;
+                    const noseRelY = (nose.y - topHead.y) / faceHeight;
+
+                    if (noseRelY < 0.40) {
+                        this.neckExtendedFrames++;
+                        this.optimalFrames = 0;
+                        if (this.neckExtendedFrames > 90) {
+                            this.neckExtendedFrames = 0;
+                            this.lastSpokenTime = now;
+                            this.speak(
+                                "Whoa buddy, looking up at the sky? Let's bring that chin down just a bit to keep your neck perfectly relaxed while we drive!",
+                                [
+                                    { label: "Chin tucked, all good!", reply: "That looks much better. Relaxed shoulders and neck prevent muscle fatigue." }
+                                ]
+                            );
+                            return;
+                        }
+                    } else {
+                        this.neckExtendedFrames = 0;
+                        if (typeof speed !== 'undefined' && Math.abs(speed) > 0.05) {
+                            this.optimalFrames++;
+                            if (this.optimalFrames > 300) {
+                                this.optimalFrames = 0;
+                                this.lastSpokenTime = now;
+                                this.speak(
+                                    "Look at that focus! You're doing amazing today, my friend. Let's keep conquering this road together!",
+                                    [
+                                        { label: "Thanks buddy!", reply: "You've got this! Every single meter builds up your strength." }
+                                    ]
+                                );
+                                return;
+                            }
+                        } else {
+                            this.optimalFrames = 0;
+                        }
+                    }
+                }
+            },
+
+            checkTriggers: function(dist) {
+                if (!this.hasSpokenStart && dist > 1) {
+                    this.hasSpokenStart = true;
+                    this.speak(
+                        "Hi! How are you doing? I'm PhysioBuddy, your therapeutic co-driver. Let's keep those arms raised comfortably to accelerate!",
+                        [
+                            { label: "I feel great, let's drive!", reply: "Awesome energy! Smooth steering will maximize your shoulder and wrist recovery." },
+                            { label: "Arms are a bit stiff", reply: "Take it easy and gentle. Remember, you can adjust your arm height to whatever feels comfortable." }
+                        ]
+                    );
+                }
+
+                if (!this.hasSpokenNutrition && dist > 60) {
+                    this.hasSpokenNutrition = true;
+                    this.speak(
+                        "Your elevation hold is looking fantastic. Rebuilding motor strength requires good fuel. What kind of food did you eat today?",
+                        [
+                            { label: "Lean Proteins & Veggies", reply: "Perfect! Proteins and vitamins build strong muscle tissue and speed up recovery." },
+                            { label: "Carbs / Energy Snack", reply: "Great for quick driving energy! Make sure to stay hydrated with plenty of water too." },
+                            { label: "Haven't eaten yet", reply: "No worries, be sure to have a healthy, balanced recovery meal after we park the car!" }
+                        ]
+                    );
+                }
+
+                if (!this.hasSpokenWorkout && dist > 150) {
+                    this.hasSpokenWorkout = true;
+                    this.speak(
+                        "Superb steering rhythm! To support our driving progress, I suggest some post-drive rotator cuff wall stretches and slow forearm twists. Ready for the home stretch?",
+                        [
+                            { label: "Yes, suggest more exercises!", reply: "Try gently squeezing a soft rehab ball or doing slow shoulder rolls. Let's conquer the rest of this road!" },
+                            { label: "Parking soon, thanks!", reply: "You did wonderfully today. Consistent daily driving will steadily expand your range of motion." }
+                        ]
+                    );
+                }
+            }
+        };
+
+        // Boot up
+        CompanionAI.init();
+        init3D();
+        initMediaPipe();
+
+    </script>
+</body>
+</html>
